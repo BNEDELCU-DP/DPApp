@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PD Data Analysis API</title>
+        
+    <!-- jsTree CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='jstree/style.min.css') }}">
+        
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='fontawesome-free-6.7.2-web/css/all.min.css') }}">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+        }
+
+        /* Toggle button styles */
+        .toggle-chevron {
+            position: fixed;
+            top: 4rem;
+            left: 0.5rem;
+            z-index: 1000;
+            font-size: 1.5rem;
+            cursor: pointer;
+            background-color: #252526;
+            color: #e0e0e0;
+            border: 1px solid #1e1e1e;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: left 0.3s ease;
+        }
+
+        /* Directory Tree Styles */
+        #directory-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 250px;
+            background-color: #252526;
+            overflow-y: auto;
+            border-right: 1px solid #1e1e1e;
+            transition: transform 0.3s ease;
+            z-index: 999;
+        }
+
+        #directory-container.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .tree-header {
+            padding: 15px;
+            background-color: #333333;
+            color: #e0e0e0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        #fileTree {
+            padding: 10px;
+        }
+
+        /* Current Directory Display */
+        #current-directory {
+            padding: 10px;
+            background-color: #333333;
+            color: #e0e0e0;
+            font-size: 12px;
+            border-bottom: 1px solid #1e1e1e;
+            word-break: break-all;
+        }
+
+        /* Path selection button */
+        #path-container {
+            padding: 10px;
+            background-color: #333333;
+            border-bottom: 1px solid #1e1e1e;
+        }
+        
+        #path-submit {
+            width: 100%;
+            padding: 8px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        #path-submit:hover {
+            background-color: #2980b9;
+        }
+
+        /* Main content layout */
+        #main-content {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Navigation Menu Styles */
+        #nav-menu {
+            width: 100%;
+            background-color: #333333;
+            padding: 10px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #nav-container {
+            display: flex;
+            justify-content: center;
+            position: relative;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 120px;
+        }
+
+        #nav-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .nav-button {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .nav-button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .nav-button:active {
+            background-color: #1f618d;
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Connection status indicator */
+        .connection-status {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 15px;
+            background: rgba(30, 30, 30, 0.8);
+            border-radius: 20px;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #status-icon {
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        #status-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e0e0e0;
+        }
+
+        /* Connected state - Big green with glow */
+        .status-connected {
+            color: #2ecc71;
+            text-shadow: 0 0 10px #2ecc71;
+            animation: glow-green 1.5s infinite alternate;
+        }
+
+        /* Disconnected state - Big red with glow */
+        .status-disconnected {
+            color: #e74c3c;
+            text-shadow: 0 0 10px #e74c3c;
+            animation: glow-red 1.5s infinite alternate;
+        }
+
+        /* Connecting state - Pulsing orange */
+        .status-connecting {
+            color: #f39c12;
+            animation: pulse-orange 1s infinite;
+        }
+
+        /* Animations */
+        @keyframes glow-green {
+            from { text-shadow: 0 0 5px #2ecc71; }
+            to { text-shadow: 0 0 15px #2ecc71, 0 0 20px #2ecc71; }
+        }
+
+        @keyframes glow-red {
+            from { text-shadow: 0 0 5px #e74c3c; }
+            to { text-shadow: 0 0 15px #e74c3c, 0 0 20px #e74c3c; }
+        }
+
+        @keyframes pulse-orange {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        /* Main content wrapper */
+        .main-content-wrapper {
+            display: flex;
+            width: 100%;
+            gap: 20px;
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        /* Side button panels */
+        .side-panel {
+            width: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Enhanced side buttons styling */
+        .side-button {
+            padding: 8px 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-align: center;
+            margin: 4px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .side-button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .side-button:active {
+            background-color: #1f618d;
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        
+        /* Icon support for side buttons */
+        .side-button i {
+            margin-right: 6px;
+            font-size: 12px;
+        }
+        
+        /* Button groups */
+        .button-group {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        
+        .button-group-title {
+            color: #333;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Plot container */
+        #plot-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #plot-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            background-color: #1e1e1e;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        #plotImage {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        #selectionBox {
+            position: absolute;
+		    border: 1px dashed #84accf;
+            background-color: rgba(71, 179, 255, 0.05);
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .controls button {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .controls button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .controls button:active {
+            background-color: #1f618d;
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Console area */
+        #text-console {
+            width: calc(100% - 40px);
+            height: 200px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            padding: 10px;
+            font-family: monospace;
+            overflow-y: auto;
+            border-radius: 4px;
+            margin: 20px;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+        }
+
+        /* Popup modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        .modal-content {
+            background-color: #252526;
+            margin: 5% auto;
+            padding: 0;
+            border: 1px solid #1e1e1e;
+            width: 70%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background-color: #333333;
+            color: #e0e0e0;
+            font-weight: bold;
+            border-bottom: 1px solid #1e1e1e;
+            flex-shrink: 0;
+        }
+
+        .modal-body {
+            padding: 0 20px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background-color: #333333;
+            border-top: 1px solid #1e1e1e;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #e0e0e0;
+        }
+
+        /* jsTree Customization */
+        .jstree-default .jstree-anchor {
+            color: #e0e0e0;
+            font-size: 13px;
+        }
+        .jstree-default .jstree-hovered {
+            background-color: #2a2d2e;
+        }
+        .jstree-default .jstree-clicked {
+            background-color: #37373d;
+        }
+        .jstree-default .jstree-wholerow-hovered {
+            background: #2a2d2e;
+        }
+        .jstree-default .jstree-wholerow-clicked {
+            background: #37373d;
+        }
+        
+        /* Custom jsTree arrow styles */
+        .jstree-default .jstree-node {
+            position: relative;
+        }
+        
+        .jstree-default .jstree-icon.jstree-ocl {
+            background-image: none !important;
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            color: #3498db;
+            text-align: center;
+            font-size: 12px;
+            line-height: 24px;
+            width: 24px;
+            height: 24px;
+            transition: transform 0.2s ease;
+        }
+        
+        .jstree-default .jstree-closed > .jstree-ocl:before {
+            content: "\f0da"; /* Font Awesome right arrow (fa-caret-right) */
+        }
+        
+        .jstree-default .jstree-open > .jstree-ocl:before {
+            content: "\f0d7"; /* Font Awesome down arrow (fa-caret-down) */
+        }
+        
+        .jstree-default .jstree-leaf > .jstree-ocl:before {
+            content: "";
+        }
+        
+        /* Hover effect for arrows */
+        .jstree-default .jstree-node:hover > .jstree-ocl {
+            color: #2ecc71;
+        }
+		
+		/* Parameters box styling */
+		.parameters-box {
+			background-color: #252526;
+			border: 1px solid #1e1e1e;
+			border-radius: 4px;
+			padding: 8px;
+			margin-bottom: 10px;
+		}
+
+		.parameter-row {
+			display: flex;
+			align-items: center;
+			margin-bottom: 6px;
+			font-family: monospace;
+		}
+
+		.parameter-row:last-child {
+			margin-bottom: 0;
+		}
+
+		.parameter-row label {
+			color: #e0e0e0;
+			font-size: 13px;
+			width: 20px;
+			flex-shrink: 0;
+			font-weight: bold;
+		}
+
+		.parameter-value {
+			flex-grow: 1;
+			background-color: #1e1e1e;
+			border: 1px solid #333;
+			color: #e0e0e0;
+			padding: 4px 8px;
+			border-radius: 3px;
+			font-size: 13px;
+			text-align: right;
+			min-width: 80px;
+		}		
+		
+/* Logo container styles */
+#logo-container {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.logo-background {
+    background-color: white;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-svg {
+    height: 30px; /* Adjust based on your SVG aspect ratio */
+    width: auto;
+    max-width: 120px; /* Prevent logo from being too wide */
+}
+
+/* Adjust nav-container padding to accommodate logo */
+#nav-container {
+    padding: 0 120px 0 160px; /* Increased left padding */
+}	
+    </style>
+</head>
+<body>
+    <!-- Toggle button for sidebar -->
+    <div class="toggle-chevron" id="toggleBtn">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+
+    <!-- Directory Tree -->
+    <div id="directory-container" class="collapsed">
+        <div class="tree-header">FILE EXPLORER</div>
+        <div id="path-container">
+            <button id="path-submit"><i class="fas fa-folder-open"></i> Select Working Directory</button>
+        </div>
+        <div id="current-directory">/Users/Bogdan/Documents/DP/</div>
+        <div id="fileTree"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <!-- Navigation Menu -->
+        <div id="nav-menu">
+            <div id="nav-container">
+				<div id="logo-container">
+					<div class="logo-background">
+						<img src="{{ url_for('static', filename='SIGLA_SIMTECH.svg') }}" alt="SIMTECH Logo" class="logo-svg">
+					</div>
+				</div>						
+                <div id="nav-buttons">
+                    <button class="nav-button" data-action="compute-all"><i class="fas fa-calculator"></i> Compute Parameters</button>
+                    <button class="nav-button" data-action="compute-noise"><i class="fas fa-wave-square"></i> Compute Noise</button>
+                    <button class="nav-button" data-action="compute-file"><i class="fas fa-file-alt"></i> File Params</button>
+                    <button class="nav-button" data-action="analysis1"><i class="fas fa-chart-bar"></i> Analysis 1</button>
+                    <button class="nav-button" data-action="analysis2"><i class="fas fa-chart-line"></i> Analysis 2</button>
+                    <button class="nav-button" data-action="analysis3"><i class="fas fa-chart-pie"></i> Analysis 3</button>
+                    <button class="nav-button" data-action="settings"><i class="fas fa-cog"></i> Settings</button>
+                    <button class="nav-button" data-action="help"><i class="fas fa-question-circle"></i> Help</button>
+                </div>
+                <div id="connection-status" class="connection-status">
+                    <i class="fas fa-circle" id="status-icon"></i>
+                    <span id="status-text">Online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="main-content-wrapper">
+            <!-- Left side buttons -->
+            <div class="side-panel">
+                <div class="button-group">
+                    <div class="button-group-title">View Options</div>
+                    <button class="side-button" data-action="zoom-in">
+                        <i class="fas fa-search-plus"></i> Zoom In
+                    </button>
+                    <button class="side-button" data-action="zoom-out">
+                        <i class="fas fa-search-minus"></i> Zoom Out
+                    </button>
+                    <button class="side-button" data-action="pan-mode">
+                        <i class="fas fa-arrows-alt"></i> Pan Mode
+                    </button>
+                </div>
+                
+                <div class="button-group">
+                    <div class="button-group-title">Data Tools</div>
+                    <button class="side-button" data-action="add-marker">
+                        <i class="fas fa-map-marker-alt"></i> Add Marker
+                    </button>
+                    <button class="side-button" data-action="measure">
+                        <i class="fas fa-ruler"></i> Measure
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Main plot area -->
+            <div id="plot-wrapper">
+                <div id="plot-container">
+                    <img id="plotImage" src="/plot-image" alt="Plot">
+                    <div id="selectionBox"></div>
+                </div>
+                <div class="controls">
+                    <button id="goBackButton"><i class="fas fa-arrow-left"></i> Go Back</button>
+                    <button id="resetButton"><i class="fas fa-sync-alt"></i> Reset Zoom</button>
+                </div>
+            </div>
+            
+            <!-- Right side buttons -->
+            <div class="side-panel">
+                <div class="button-group">
+                    <div class="button-group-title">Analysis</div>
+                    <button class="side-button" data-action="peak-detection">
+                        <i class="fas fa-mountain"></i> Find Peaks
+                    </button>
+                    <button class="side-button" data-action="Noise Level">
+                        <i class="fas fa-chart-line"></i> Noise Level
+                    </button>
+                </div>
+                
+                <div class="button-group">
+                    <div class="button-group-title">Export</div>
+                    <button class="side-button" data-action="export-png">
+                        <i class="fas fa-image"></i> Save as PNG
+                    </button>
+                    <button class="side-button" data-action="export-csv">
+                        <i class="fas fa-file-csv"></i> Export Data
+                    </button>
+                </div>
+				
+				<!-- Calibration parameters fields -->
+				<div class="button-group">
+					<div class="button-group-title">Computed Parameters</div>
+					<div class="parameters-box">
+						<div class="parameter-row">
+							<label>A:</label>
+							<div class="parameter-value" id="param-A">0.000</div>
+						</div>
+						<div class="parameter-row">
+							<label>B:</label>
+							<div class="parameter-value" id="param-B">0.000</div>
+						</div>
+						<div class="parameter-row">
+							<label>C:</label>
+							<div class="parameter-value" id="param-C">0.000</div>
+						</div>
+						<div class="parameter-row">
+							<label>a:</label>
+							<div class="parameter-value" id="param-a">0.000</div>
+						</div>
+						<div class="parameter-row">
+							<label>b:</label>
+							<div class="parameter-value" id="param-b">0.000</div>
+						</div>
+						<div class="parameter-row">
+							<label>c:</label>
+							<div class="parameter-value" id="param-c">0.000</div>
+						</div>
+					</div>
+					<!-- <button class="side-button" data-action="refresh-params">
+						<i class="fas fa-sync-alt"></i> Refresh Values
+					</button> -->
+				</div>			
+				
+            </div>
+        </div>
+        
+        <!-- Text console -->
+        <div id="text-console">
+            > System initialized. Ready for commands.
+            > Select a file or choose an action from the menu.
+        </div>
+    </div>
+
+    <!-- Directory Selection Modal -->
+    <div id="directoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <h2>Select Working Directory</h2>
+            </div>
+            <div class="modal-body">
+                <div id="directorySelectionTree"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmDirectory" class="nav-button">Select</button>
+                <button id="cancelDirectory" class="nav-button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery (required for jsTree) -->
+    <script src="{{ url_for('static', filename='jquery.min.js') }}"></script>
+    <!-- jsTree -->
+    <script src="{{ url_for('static', filename='jstree/jstree.min.js') }}"></script>
+
+    <script>
+        // Toggle sidebar functionality
+        const toggleBtn = document.getElementById('toggleBtn');
+        const sidebar = document.getElementById('directory-container');
+        const chevronIcon = toggleBtn.querySelector('i');
+        const mainContent = document.getElementById('main-content');
+
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            chevronIcon.classList.toggle('fa-chevron-left', !isCollapsed);
+            chevronIcon.classList.toggle('fa-chevron-right', isCollapsed);
+            
+            // Adjust toggle button position
+            if (isCollapsed) {
+                toggleBtn.style.left = '0.5rem';
+            } else {
+                toggleBtn.style.left = 'calc(250px + 0.5rem)';
+            }
+        });
+
+        // Initialize jsTree
+        $(document).ready(function() {
+            // Default root path
+            let currentRootPath = '/Users/Bogdan/Documents/DP/';
+            
+            // Initialize file tree
+            function initializeFileTree(rootPath) {
+                $('#fileTree').jstree({
+                    'core': {
+                        'data': {
+                            'url': '/api/list-directory',
+                            'data': function (node) {
+                                return { 'id': node.id === '#' ? rootPath : node.id };
+                            },
+                            'dataType': 'json'
+                        },
+                        'themes': {
+                            'responsive': false,
+                            'dots': false
+                        }
+                    },
+                    'types': {
+                        'default': {
+                            'icon': 'fas fa-file'
+                        },
+                        'folder': {
+                            'icon': 'fas fa-folder'
+                        },
+                        'folder-open': {
+                            'icon': 'fas fa-folder-open'
+                        },                        
+                        'csv': {
+                            'icon': 'fas fa-file-csv'
+                        },
+                        'json': {
+                            'icon': 'fas fa-file-code'
+                        },
+                        'image': {
+                            'icon': 'fas fa-file-image'
+                        }
+                    },
+                    'plugins': ['types', 'wholerow', 'state']
+                }).on('select_node.jstree', function(e, data) {
+                    if (data.node.children.length === 0) {
+                        logToConsole(`> Selected file: ${data.node.text}`);
+                        
+                        if (data.node.type === 'csv') {
+                            loadCSVFileForPlotting(data.node.id);
+                        }
+                        
+                        if (data.node.type === 'image') {
+                            loadPNGFileForPlotting(data.node.id);
+                        }
+                    }                
+                }).on('open_node.jstree', function(e, data) {
+                    data.instance.set_type(data.node, 'folder-open');
+                }).on('close_node.jstree', function(e, data) {
+                    data.instance.set_type(data.node, 'folder');
+                });
+            }
+            
+            // Initialize with default path
+            initializeFileTree(currentRootPath);
+            
+            // Initialize directory selection modal
+            const modal = document.getElementById("directoryModal");
+            const btn = document.getElementById("path-submit");
+            const span = document.getElementsByClassName("close")[0];
+            const confirmBtn = document.getElementById("confirmDirectory");
+            const cancelBtn = document.getElementById("cancelDirectory");
+            
+            let selectedDirectoryPath = '';
+            
+            // Initialize directory selection tree in modal
+            $('#directorySelectionTree').jstree({
+                'core': {
+                    'data': {
+                        'url': '/api/list-directory',
+                        'data': function (node) {
+                            const rootPath = window.navigator.platform.includes('Win') ? 'C:\\' : '/';
+                            return { 'id': node.id === '#' ? rootPath : node.id };
+                        },
+                        'dataType': 'json'
+                    },
+                    'themes': {
+                        'responsive': false,
+                        'dots': false
+                    }
+                },
+                'types': {
+                    'default': {
+                        'icon': 'fas fa-file'
+                    },
+                    'folder': {
+                        'icon': 'fas fa-folder'
+                    },
+                    'folder-open': {
+                        'icon': 'fas fa-folder-open'
+                    }
+                },
+                'plugins': ['types', 'wholerow', 'state']
+            }).on('select_node.jstree', function(e, data) {
+                if (data.node.type === 'folder' || data.node.type === 'folder-open') {
+                    selectedDirectoryPath = data.node.id;
+                }
+            }).on('open_node.jstree', function(e, data) {
+                data.instance.set_type(data.node, 'folder-open');
+            }).on('close_node.jstree', function(e, data) {
+                data.instance.set_type(data.node, 'folder');
+            });
+            
+            // Open modal when button is clicked
+            btn.onclick = function() {
+                modal.style.display = "block";
+                selectedDirectoryPath = '';
+                $('#directorySelectionTree').jstree('deselect_all');
+            }
+            
+            // Close modal when X is clicked
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
+            
+            // Close modal when Cancel is clicked
+            cancelBtn.onclick = function() {
+                modal.style.display = "none";
+            }
+            
+            // Handle directory selection
+            confirmBtn.onclick = function() {
+                if (selectedDirectoryPath) {
+                    document.getElementById('current-directory').textContent = selectedDirectoryPath;
+                    $('#fileTree').jstree('destroy');
+                    initializeFileTree(selectedDirectoryPath);
+                    modal.style.display = "none";
+                    logToConsole(`> Working directory set to: ${selectedDirectoryPath}`);
+                } else {
+                    alert("Please select a directory");
+                }
+            }
+            
+            // Close modal when clicking outside
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+        });
+
+        // File loading functions
+        function loadPNGFileForPlotting(filePath) {
+            logToConsole(`> Loading image file: ${filePath}`);
+            fetch('/api/load-plot-img', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filePath: filePath })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.image_url) {
+                    img.src = data.image_url + "?t=" + new Date().getTime();
+                    logToConsole(`> Image loaded successfully`);
+                } else {
+                    logToConsole(`! Error: ${data.error || "Failed to load image"}`);
+                }
+            })
+            .catch(error => {
+                logToConsole(`! Network error: ${error.message}`);
+            });
+        }
+
+        function loadCSVFileForPlotting(filePath) {
+            logToConsole(`> Processing CSV file: ${filePath}`);
+            fetch('/api/load-csv-data', {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ filePath: filePath })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.image_url) {
+                    currentXstart = parseFloat(data.xstart);
+                    currentXend = parseFloat(data.xend);
+                    zoomHistory = [];
+                    img.src = data.image_url + "?t=" + new Date().getTime();
+                    logToConsole(`> Data loaded successfully. Range: ${currentXstart} to ${currentXend}`);
+                } else {
+                    logToConsole(`! Error: ${data.error || "Failed to load data"}`);
+                }
+            })
+            .catch(error => {
+                logToConsole(`! Error processing file: ${error.message}`);
+            });
+        }
+
+        // Function to log messages to console
+        function logToConsole(message) {
+            const consoleElement = document.getElementById('text-console');
+            consoleElement.textContent += '\n' + message;
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+
+        // Handle all button clicks
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to all buttons
+            const allButtons = document.querySelectorAll('.nav-button, .side-button, .controls button');
+            
+            allButtons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                });
+                
+                button.addEventListener('mouseleave', function() {
+                    this.style.transform = '';
+                    this.style.boxShadow = '';
+                });
+                
+                button.addEventListener('mousedown', function() {
+                    this.style.transform = 'translateY(1px)';
+                    this.style.boxShadow = 'none';
+                });
+                
+                button.addEventListener('mouseup', function() {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                });
+                
+                // Handle button actions
+                button.addEventListener('click', async function() {
+                    const action = this.getAttribute('data-action');
+                    if (!action) return;
+                    
+                    logToConsole(`> Executing: ${action}`);
+                    
+                    try {
+                        const response = await fetch('/handle-action', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: action })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            logToConsole(`> Success: ${result.message}`);
+                            if (result.image_url) {
+                                img.src = result.image_url + "?t=" + Date.now();
+                            }
+                        } else {
+                            logToConsole(`! Error: ${result.error}`);
+                        }
+                    } catch (error) {
+                        logToConsole(`! Network error: ${error.message}`);
+                    }
+                });
+            });
+        });
+
+        // Global variables for zoom state
+        let currentXstart = null;
+        let currentXend = null;
+        let zoomHistory = [];
+        const img = document.getElementById("plotImage");
+        const selectionBox = document.getElementById("selectionBox");
+        let isDragging = false;
+        let startX, endX;
+
+		function getGraphBoundaries() {
+			const rect = img.getBoundingClientRect();
+			// These percentages should match your actual graph area within the image
+			return {
+				left: rect.left + (rect.width * 0.125),  // 12.5% from left
+				right: rect.left + (rect.width * 0.9),   // 90% from left (10% from right)
+				top: rect.top + (rect.height * 0.12),    // 12% from top
+				bottom: rect.top + (rect.height * 0.88)  // 88% from top (12% from bottom)
+			};
+		}
+		
+        // Zoom functionality
+		img.addEventListener("mousedown", function(event) {
+			if (currentXstart === null || currentXend === null) {
+				logToConsole("! No data loaded - cannot zoom");
+				return;
+			}
+
+			const bounds = getGraphBoundaries();
+			const offsetX = event.clientX;
+
+			if (offsetX >= bounds.left && offsetX <= bounds.right) {
+				isDragging = true;
+				startX = offsetX;
+
+				selectionBox.style.left = (startX - bounds.left) + "px";
+				selectionBox.style.top = "48px";
+				selectionBox.style.width = "0px";
+				selectionBox.style.height = (bounds.bottom - bounds.top) + "px";
+				selectionBox.style.display = "block";
+				
+				// Position the selection box relative to the plot container
+				selectionBox.style.position = "absolute";
+				selectionBox.style.left = "0px";
+			}
+		});
+
+		document.addEventListener("mousemove", function(event) {
+			if (!isDragging) return;
+
+			const bounds = getGraphBoundaries();
+			let currentX = event.clientX;
+			currentX = Math.max(bounds.left, Math.min(currentX, bounds.right));
+
+			const plotContainer = document.getElementById('plot-container');
+			const containerRect = plotContainer.getBoundingClientRect();
+			
+			const relativeStart = Math.min(startX, currentX) - containerRect.left;
+			const relativeWidth = Math.abs(currentX - startX);
+
+			selectionBox.style.left = relativeStart + "px";
+			selectionBox.style.width = relativeWidth + "px";
+		});
+
+		// Update the mouseup event handler
+		document.addEventListener("mouseup", function(event) {
+			if (!isDragging) return;
+			isDragging = false;
+			selectionBox.style.display = "none";
+
+			const bounds = getGraphBoundaries();
+			endX = event.clientX;
+			endX = Math.max(bounds.left, Math.min(endX, bounds.right));
+
+			if (Math.abs(startX - endX) < 5) {
+				logToConsole("! Selection too small - please try again");
+				return;
+			}
+			
+			let pixelStart = Math.min(startX, endX) - bounds.left;
+			let pixelEnd = Math.max(startX, endX) - bounds.left;
+			let graphWidth = bounds.right - bounds.left;
+			
+			let xstart = mapPixelToData(pixelStart, 0, graphWidth, currentXstart, currentXend);
+			let xend = mapPixelToData(pixelEnd, 0, graphWidth, currentXstart, currentXend);
+
+			zoomHistory.push({ xstart: currentXstart, xend: currentXend });
+			currentXstart = xstart;
+			currentXend = xend;
+
+			sendZoomRequest("/zoomin", xstart, xend);
+		});
+
+        function mapPixelToData(pixel, minPixel, maxPixel, minData, maxData) {
+            return minData + (pixel - minPixel) * (maxData - minData) / (maxPixel - minPixel);
+        }
+
+        function sendZoomRequest(endpoint, xstart, xend) {
+            if (xstart === null || xend === null || xstart >= xend) {
+                logToConsole("! Invalid zoom range");
+                return;
+            }
+
+            logToConsole(`> Zooming to range: ${xstart.toFixed(2)} - ${xend.toFixed(2)}`);
+            fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ xstart, xend })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.image_url) {
+                    img.src = data.image_url + "?t=" + new Date().getTime();
+                    logToConsole("> Zoom applied successfully");
+                } else {
+                    logToConsole(`! Zoom error: ${data.error || "Operation failed"}`);
+                }
+            })
+            .catch(error => {
+                logToConsole(`! Zoom error: ${error.message}`);
+            });
+        }
+
+        // Navigation controls
+        document.getElementById('goBackButton').addEventListener('click', goBack);
+        document.getElementById('resetButton').addEventListener('click', resetZoom);
+
+        function goBack() {
+            if (zoomHistory.length === 0) {
+                logToConsole("! No more zoom history to go back");
+                return;
+            }
+
+            const previousZoom = zoomHistory.pop();
+            currentXstart = previousZoom.xstart;
+            currentXend = previousZoom.xend;
+            logToConsole("> Reverting to previous zoom level");
+            sendZoomRequest("/zoomout", currentXstart, currentXend);
+        }
+
+        function resetZoom() {
+            logToConsole("> Resetting zoom to default");
+            fetch("/reset", { method: "POST" })
+            .then(response => response.json())
+            .then(data => {
+                if (data.image_url) {
+                    currentXstart = parseFloat(data.xstart);
+                    currentXend = parseFloat(data.xend);
+                    zoomHistory = [];
+                    img.src = data.image_url + "?t=" + new Date().getTime();
+                    logToConsole("> Zoom reset successfully");
+                } else {
+                    logToConsole(`! Reset error: ${data.error || "Operation failed"}`);
+                }
+            })
+            .catch(error => {
+                logToConsole(`! Reset error: ${error.message}`);
+            });
+        }
+		
+        // Connection status monitor
+        const statusIcon = document.getElementById('status-icon');
+        const statusText = document.getElementById('status-text');
+        let connectionCheckInterval;
+
+        function startConnectionMonitoring() {
+            // Initial state
+            setConnectionStatus('connecting', 'Connecting...');
+            
+            // Check immediately and then every second
+            checkConnection();
+            connectionCheckInterval = setInterval(checkConnection, 1000);
+        }
+
+        function checkConnection() {
+            fetch('/api/heartbeat', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                cache: 'no-store'
+            })
+            .then(response => {
+                if (response.ok) {
+                    setConnectionStatus('connected', 'Online');
+                } else {
+                    setConnectionStatus('disconnected', 'Offline');
+                }
+            })
+            .catch(error => {
+                setConnectionStatus('disconnected', 'Offline');
+            });
+        }
+
+        function setConnectionStatus(status, text) {
+            // Remove all status classes first
+            statusIcon.classList.remove(
+                'status-connected',
+                'status-disconnected',
+                'status-connecting'
+            );
+            
+            // Add current status class
+            statusIcon.classList.add(`status-${status}`);
+            statusText.textContent = text;
+            
+            // Update tooltip
+            statusIcon.title = `Last update: ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Start monitoring when page loads
+        document.addEventListener('DOMContentLoaded', startConnectionMonitoring);
+
+        // Clean up when page unloads
+        window.addEventListener('beforeunload', () => {
+        clearInterval(connectionCheckInterval);
+    });	
+		
+	// Function to update parameter displays
+	function updateParameters(data) {
+		document.getElementById('param-A').textContent = data.A.toFixed(3);
+		document.getElementById('param-B').textContent = data.B.toFixed(3);
+		document.getElementById('param-C').textContent = data.C.toFixed(3);
+		document.getElementById('param-a').textContent = data.a.toFixed(3);
+		document.getElementById('param-b').textContent = data.b.toFixed(3);
+		document.getElementById('param-c').textContent = data.c.toFixed(3);
+	}
+
+	// Example of how to call it with sample data
+	updateParameters({
+		A: 1.234,
+		B: 5.678,
+		C: 9.012,
+		a: 0.123,
+		b: 0.456,
+		c: 0.789
+	});
+
+	// Add refresh button handler
+	document.addEventListener('click', function(e) {
+		if (e.target.closest('[data-action="refresh-params"]')) {
+			logToConsole('> Refreshing parameter values...');
+			
+			fetch('/api/get-parameters')
+				.then(response => response.json())
+				.then(data => {
+					updateParameters(data);
+					logToConsole('> Parameters updated successfully');
+				})
+				.catch(error => {
+					logToConsole(`! Error refreshing parameters: ${error.message}`);
+				});
+		}
+	});	
+	
+	// Responsive logo sizing
+	function adjustLogoSize() {
+		const logo = document.querySelector('.logo-svg');
+		const navMenu = document.getElementById('nav-menu');
+		
+		if (window.innerWidth < 768) {
+			logo.style.height = '24px';
+			document.querySelector('.logo-background').style.padding = '6px';
+			document.getElementById('nav-container').style.paddingLeft = '130px';
+		} else {
+			logo.style.height = '30px';
+			document.querySelector('.logo-background').style.padding = '8px';
+			document.getElementById('nav-container').style.paddingLeft = '160px';
+		}
+	}
+
+	// Run on load and resize
+	window.addEventListener('load', adjustLogoSize);
+	window.addEventListener('resize', adjustLogoSize);	
+
+    </script>
+</body>
+</html>

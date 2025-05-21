@@ -1,0 +1,124 @@
+/****************************************************
+ *                                                  *
+ *   FUNCTIONS IN THE FILES USED IN THE PROJECT     *
+ *                                                  *
+ ****************************************************/
+
+ReadCSVFiles.py
+===============
+
+    1.  def custom_sort_key(filename):
+			"""
+			Custom sorting key for filenames.
+			Keys as A-1, A-2,..., A-9, B-1, B-2,..., B-9, C-1,...
+			"""
+            @ RETURNS -> Return a tuple (prefix, number) for sorting.
+			             Keys like A-1, A-2,..., A-9, B-1, B-2,..., B-9, C-1,...
+			
+    2.  def getCSVFiles(csv_files_directory):
+            """Return a list with all CSV files in the directory"""
+            @ RETURNS -> A list of file paths for all CSV files in the specified directory.
+
+    3.  def readCSVFile(filename, row_num, skip_rows=0, delimiter=";"):
+			"""
+			Reads a CSV file and returns the values from a specific column.
+			:param file: The path to the CSV file.
+			:param row_num: The index of the column from which to extract data.
+			:param skip_rows: The number of rows to skip (0 for files with a single header, 9 for files with metadata).
+			:param delimiter: The separator used in the CSV (default: ";").
+			:return: A NumPy array with the extracted values.
+			"""
+            @ RETURNS -> A numpy array containing the dataset from the specified CSV file.
+
+---
+
+FFTdBExtraction.py
+==================
+
+    1.  def applyFilter(signal):
+            """Applies smoothing using Gaussian"""
+            @ RETURNS -> A smoothed version of the input signal.
+
+    2.  def extractInterestDomainFrequencies(data):
+            """Apply FFT and extract frequencies between 1 MHz - 5 MHz"""
+            @ RETURNS -> A numpy array containing the frequency domain data within the specified range.
+
+    3.  def plotFFTMagnitudeAndExtractMAX(filename, output_dir):
+            """Processes FFT, applies smoothing and then plots results to png files"""
+            @ RETURNS -> The max dB value from the the selected frequency domain .
+
+---
+
+CoefExtraction.py
+=================
+
+    1.  def exponentialModel(x, a, b):
+            """Define exponential model: y = a * e^(b * x)"""
+            @ RETURNS -> The value of the exponential function at x.
+
+    2.  def fitExponentialCurve(x, y):
+            """Fit an exponential curve to experimental data set"""
+            @ RETURNS -> The coefficients (a, b) of the fitted exponential curve.
+
+    3.  def calculateExponentialCoefficientsForDataset(max_db_list):
+            """Calculates exponential coefficients for a given data set"""
+            @ RETURNS -> The coefficients (a, b) of the exponential curve fitted to the dataset.
+			
+    4.  def plotFittedCurve(max_db_list, filename, output_dir):
+            """
+            Calculates exponential coefficients and plots the fitted curve
+            Plot the original data and the fitted exponential curve
+            """
+			@ RETURNS -> Returns a and b coefficients.
+			
+	5.  def saveFittedCurveToCSV(exp_coef_a, exp_coef_b, filename, output_dir):
+            """Save the fitted curve exponential coefficients to a CSV file"""
+            @ RETURNS -> none
+
+---
+
+NoiseFloorExtraction.py
+=======================
+
+    1.  def extract_noise_floor(signal, sample_rate, freq_range=(1e6, 5e6), bandwidth=100e3):
+		"""
+		Extract the noise floor from a frequency domain signal in specified frequency range and bandwidth.
+
+		Parameters:
+		- signal: The time-domain signal (1D numpy array).
+		- sample_rate: The sampling rate of the signal (in Hz).
+		- freq_range: Tuple (f_min, f_max) specifying the frequency range of interest (in Hz).
+		- bandwidth: The bandwidth for each frequency bin (in Hz).
+        """
+		@ RETURNS -> noise_floor: A dictionary where keys are frequency bins (in Hz) 
+		             and values are the noise floor levels (in dB/Hz).
+
+    2.  def plot_noise_floor(noise_floor, frequencies, psd_db, filename, output_dir):
+        """Plot the noise floor and save the plot as a PNG file"""
+        @ RETURNS -> none
+	
+	3.  def save_noise_floor_to_csv(noise_floor, filename, output_dir):
+        """Save the noise floor dictionary to a CSV file"""
+
+---
+	
+Notes
+=====
+
+This version does the following:
+
+    -   Creates graphs with signal FFT magnitude in dB and smoothed data set
+	    for calibration signals provided in: 
+		    DPCalibrationData\A, B, C
+        And save them as PNG files in \Results\fft_magnitude_dB.
+
+    -   Computes exponential coefficients by fitting a curve through the
+        dataset composed of MAX dB values for each file of groups A, B, C.
+		Creates graphs of fitted exponential model using coefficients, as PNG files,
+		and save coefficients to CSV file, in \Results\fitted_exponential.
+		
+    -   Computes the noise floor by calculating the average Power Spectral Density value
+	    using Welch's method. This gives the power distribution across frequencies
+        of interest (1 MHz to 5 MHz), in 100 kHz increments.
+        Plots the resulted noise levels to PNG files, and also to CSV files,  
+        to \Results\noise_floor_100kHz_intervals.	

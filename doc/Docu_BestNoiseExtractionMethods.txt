@@ -1,0 +1,71 @@
+
+/*****************************************************
+ *                                                   * 
+ *   Choice of the best noise reduction techniques   *
+ *                                                   *
+ *****************************************************/
+
+
+1. Power Spectral Density (PSD) Denoising
+=========================================
+   
+    Strengths for Online Monitoring:
+    ================================
+        Simple and computationally lightweight, making it suitable for real-time applications.
+        Provides a broad overview of noise distribution across frequencies.
+
+    Limitations for PD Monitoring:
+    ============================== 
+        Less effective at distinguishing between noise and transient PD pulses.
+        May not preserve sharp features of PD signals, which are critical for accurate detection.
+
+    Verdict:
+	========
+	    Best suited for preliminary noise floor estimation but not ideal for 
+	    detailed PD pulse extraction in noisy environments.
+
+---
+
+2. Wiener Denoise Technique
+===========================
+
+    Strengths for Online Monitoring:
+    ================================
+        Adaptive filtering allows it to handle varying noise levels, 
+		which is common in transformer environments.
+        Effective at reducing Gaussian noise, a common noise type in high-voltage systems.
+        Preserves signal characteristics better than PSD-based methods.
+
+    Limitations for PD Monitoring:
+    ==============================
+        Requires accurate noise estimation, which can be challenging in real-time applications.
+        Computationally heavier than PSD, but still feasible for online systems with sufficient processing power.
+
+    Verdict: 
+	========
+	    A strong candidate for online PD monitoring, especially in environments 
+	    with relatively stable noise characteristics.
+
+---
+
+3. Wavelet Wiener Denoise Technique
+===================================
+
+    Strengths for Online Monitoring:
+    ================================
+        Excellent at preserving transient features of PD signals, which are crucial for accurate detection and analysis.
+
+        Well-suited for non-stationary signals, making it ideal for the dynamic noise environment of power transformers.
+
+        Can effectively separate PD pulses from background noise, even when the pulses are buried in noise.
+
+    Limitations for PD Monitoring:
+    ==============================
+        Computationally intensive, which may challenge real-time implementation on low-resource systems.
+
+        Requires careful selection of wavelet bases and thresholds, which may need tuning for specific transformer setups.
+
+    Verdict:
+    ========	
+	    The most effective method for PD monitoring in terms of accuracy and feature preservation, 
+	    but its computational demands must be addressed for real-time applications.

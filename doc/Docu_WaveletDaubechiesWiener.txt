@@ -1,0 +1,36 @@
+
+1. Why Use Daubechies Wavelets (db6)?
+=====================================
+    db6 (Daubechies-6) is chosen because:
+        It has a compact support and smooth basis functions.
+        Well-suited for analyzing signals with sharp transients (such as noise).
+        Balances between time and frequency resolution.
+    Alternatives:
+        db4: Good for generic signals.
+        sym8: Symlet, improved symmetry.
+        coif5: Better time localization.
+
+2. What is the Importance of Decomposition Levels? (level=5)
+============================================================
+    The level determines how deep the wavelet transform goes:
+        Higher levels capture lower frequencies.
+        Lower levels capture higher frequencies (including noise).
+    A good rule of thumb for choosing level:
+    Max level=log⁡2(length of signal)
+    Max level=log2​(length of signal)
+    Since we have a 10 MHz signal and want to filter the 1 MHz - 5 MHz range, level=5 provides a good balance.
+
+3. Why Use Wiener Filtering on Detail Coefficients?
+===================================================
+    The Wiener filter is adaptive:
+        It estimates the noise variance in different scales.
+        Reduces noise while preserving the actual signal.
+    We only apply it to detail coefficients (coeffs[1:]), because noise mostly exists in higher frequencies.
+
+Summary
+=======
+    Wavelet transform splits the signal into frequency bands.
+    Wiener filter smooths noise in the high-frequency bands.
+    Inverse wavelet transform reconstructs the clean signal.
+    Daubechies-6 (db6) is a good wavelet for general signal denoising.
+    Level = 5 ensures we filter frequencies between 1 MHz and 5 MHz.
